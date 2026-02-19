@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Jacare Veiculos
 
-## Getting Started
+Aplicacao web de venda de carros e motos com:
 
-First, run the development server:
+- login de **cliente** e **administrador**
+- painel admin para cadastro de veiculos
+- upload de imagem com conversao automatica para **WEBP** (otimizacao de performance)
+- controle de destaque semanal e status de documentacao por veiculo
+
+## Rodando localmente
 
 ```bash
+npm install
+npm run db:setup
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Aplicacao em: `http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Credenciais iniciais
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Admin: `admin@jacareveiculos.com` / `Admin@123`
+- Cliente: `cliente@jacareveiculos.com` / `Cliente@123`
 
-## Learn More
+## Rotas principais
 
-To learn more about Next.js, take a look at the following resources:
+- Home: `/`
+- Login: `/login`
+- Esqueci senha: `/forgot-password`
+- Redefinir senha: `/reset-password?token=...`
+- Painel admin: `/admin`
+- Area cliente: `/cliente`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts uteis
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `npm run dev` - sobe ambiente de desenvolvimento
+- `npm run lint` - valida codigo
+- `npm run test:auth-reset` - executa testes de integração do fluxo de recuperação de senha em banco isolado
+- `npm run prisma:migrate` - aplica migracoes
+- `npm run prisma:seed` - popula usuarios padrao
+- `npm run db:setup` - migrate + seed em um comando
+- `npm run maintenance:cleanup-reset-tokens` - remove tokens de reset expirados/usados antigos
 
-## Deploy on Vercel
+## Observacoes de arquitetura
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- ORM: Prisma + SQLite (MVP local)
+- Sessao: cookie httpOnly com token no banco
+- Recuperacao de senha:
+  - token seguro com hash SHA-256 e expira em 30 minutos
+  - token de uso unico
+  - sessoes anteriores sao invalidadas apos redefinicao
+  - rate limiting por IP e por e-mail no endpoint de solicitacao
+- Upload: imagem convertida para `.webp` com `sharp` em `public/uploads/vehicles`
+- Protecao de acesso:
+  - APIs admin exigem usuario com role `ADMIN`
+  - paginas `/admin` e `/cliente` validam sessao e role no servidor
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Configuracao de e-mail (recuperacao de senha)
+
+Crie seu `.env` a partir do `.env.example` e configure:
+
+- `APP_URL`: URL base da aplicacao para gerar o link de reset
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
+- `SMTP_SECURE` (`true` para 465, `false` para 587/TLS)
+
+Sem SMTP configurado, a aplicacao nao quebra em desenvolvimento: o link de reset sera exibido no log do servidor para teste local.

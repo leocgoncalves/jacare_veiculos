@@ -1,0 +1,164 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CLIENT
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum VehicleType {
+  CAR
+  MOTORCYCLE
+}
+
+enum ComplianceStatus {
+  OK
+  PENDING
+}
+
+enum TestDriveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RESCHEDULED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         UserRole
+  isActive     Boolean   @default(true)
+  approvedById String?
+  approvedBy   User?     @relation("AdminApprovals", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvals    User[]    @relation("AdminApprovals")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
+  passwordResetTokens PasswordResetToken[]
+  vehicles     Vehicle[] @relation("VehicleCreatedBy")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([usedAt])
+}
+
+model Vehicle {
+  id                String           @id @default(cuid())
+  brand             String           @default("Nao informado")
+  model             String           @default("Nao informado")
+  name              String
+  type              VehicleType
+  year              Int
+  km                Int
+  transmission      String           @default("Nao informado")
+  fuel              String           @default("Nao informado")
+  color             String           @default("Nao informado")
+  priceInCents      Int
+  shortSpecs        String
+  description       String?
+  isPublished       Boolean          @default(true)
+  isWeeklyHighlight Boolean          @default(false)
+  isSold            Boolean          @default(false)
+  deletedAt         DateTime?
+  laudoStatus       ComplianceStatus @default(PENDING)
+  ipvaStatus        ComplianceStatus @default(PENDING)
+  manualChaveStatus ComplianceStatus @default(PENDING)
+  prontaEntrega     ComplianceStatus @default(PENDING)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  createdById       String
+  createdBy         User             @relation("VehicleCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  images            VehicleImage[]
+  testDrives        TestDrive[]
+
+  @@index([isPublished, isWeeklyHighlight, isSold, deletedAt])
+  @@index([type, priceInCents, year])
+}
+
+model VehicleImage {
+  id        String   @id @default(cuid())
+  url       String
+  alt       String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, sortOrder])
+}
+
+model TestDrive {
+  id               String          @id @default(cuid())
+  customerName     String
+  customerEmail    String
+  customerPhone    String
+  note             String?
+  preferredDate    DateTime
+  scheduledDate    DateTime?
+  status           TestDriveStatus @default(PENDING)
+  adminObservation String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  vehicleId        String
+  vehicle          Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, status])
+  @@index([preferredDate])
+}
+
+model SiteSettings {
+  id                 Int      @id @default(1)
+  siteTitle          String   @default("Jacare Veiculos")
+  logoUrl            String   @default("/logo-jacare.png")
+  logoScale          Int      @default(56)
+  homeBackgroundUrl  String?
+  homeBackgroundColor String @default("#090b10")
+  processCardsBackgroundColor String @default("#10141d")
+  heroVideoUrl       String?
+  heroVideoPosterUrl String?
+  footerAddress      String   @default("Av. Comercial, 1000 - Centro, Sao Paulo - SP")
+  footerPhone        String   @default("(11) 0000-0000")
+  footerEmail        String   @default("contato@jacareveiculos.com.br")
+  footerHours        String   @default("Segunda a Sexta: 08h as 18h | Sabado: 08h as 14h")
+  instagramUrl       String   @default("https://instagram.com")
+  facebookUrl        String   @default("https://facebook.com")
+  whatsappUrl        String   @default("https://wa.me/5500000000000")
+  metaAppId          String?
+  metaAppSecret      String?
+  metaAccessToken    String?
+  updatedAt          DateTime @updatedAt
+}
