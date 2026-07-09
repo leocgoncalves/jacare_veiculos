@@ -228,14 +228,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs text-white/65">
-          <p>
-            Administrador?{" "}
-            <Link href="/admin/login" className="text-[#c8a24c] hover:brightness-110">
-              Acessar área administrativa
-            </Link>
-          </p>
-        </div>
       </div>
     </main>
   );
