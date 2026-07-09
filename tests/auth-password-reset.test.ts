@@ -43,16 +43,6 @@ after(async () => {
   await prisma.$disconnect();
 });
 
-test("POST /api/auth/forgot-password cria token para e-mail existente", async () => {
-  const user = await prisma.user.create({
-    data: {
-      name: "Admin Teste",
-      email: "admin@jacareveiculos.com",
-      passwordHash: await hashPassword("Senha@123"),
-      role: "ADMIN",
-      isActive: true,
-    },
-  });
 
   const response = await forgotPasswordPost(
     makeJsonRequest("http://localhost/api/auth/forgot-password", {

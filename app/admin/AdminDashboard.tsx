@@ -116,6 +116,10 @@ const initialSettings: SiteSettings = {
   metaAccessToken: "",
 };
 
+const MAX_VEHICLE_IMAGES = 8;
+// Limite conservador para evitar 413 em provedores serverless.
+const MAX_VEHICLE_UPLOAD_TOTAL_BYTES = 4 * 1024 * 1024;
+
 function keepOnlyDigits(value: string) {
   return value.replace(/\D/g, "");
 }
@@ -173,6 +177,40 @@ function testDriveStatusClass(status: TestDriveSummary["status"]) {
     default:
       return "text-[#c8a24c]";
   }
+}
+
+async function readApiErrorMessage(
+  response: Response,
+  fallbackMessage: string,
+): Promise<string> {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    const jsonBody = (await response.json().catch(() => ({}))) as {
+      message?: string;
+      error?: string;
+      issues?: { message?: string }[];
+    };
+    const issues = Array.isArray(jsonBody.issues)
+      ? jsonBody.issues
+          .map((issue) => issue?.message)
+          .filter((value): value is string => Boolean(value))
+      : [];
+
+    const baseMessage = jsonBody.message || jsonBody.error || fallbackMessage;
+    return issues.length > 0 ? `${baseMessage} (${issues.join(" | ")})` : baseMessage;
+  }
+
+  const textBody = await response.text().catch(() => "");
+  if (
+    response.status === 413 ||
+    /request entity too large|payload too large/i.test(textBody)
+  ) {
+    return "As imagens excedem o limite de upload. Envie menos arquivos ou imagens mais leves (total até 4 MB).";
+  }
+
+  const sanitizedText = textBody.trim();
+  return sanitizedText || fallbackMessage;
 }
 
 type NewAdminForm = {
@@ -317,6 +355,15 @@ export function AdminDashboard({
         if (imageFiles.length === 0) {
           throw new Error("Selecione ao menos uma imagem para o veículo.");
         }
+        if (imageFiles.length > MAX_VEHICLE_IMAGES) {
+          throw new Error(`Envie no máximo ${MAX_VEHICLE_IMAGES} imagens por veículo.`);
+        }
+        const totalUploadSize = imageFiles.reduce((sum, file) => sum + file.size, 0);
+        if (totalUploadSize > MAX_VEHICLE_UPLOAD_TOTAL_BYTES) {
+          throw new Error(
+            "As imagens excedem o limite de upload (4 MB no total). Reduza a quantidade ou comprima os arquivos.",
+          );
+        }
 
         const payload = new FormData();
         payload.set("brand", form.brand);
@@ -339,9 +386,13 @@ export function AdminDashboard({
           body: payload,
         });
 
-        const body = (await response.json()) as { message?: string };
         if (!response.ok) {
-          throw new Error(body.message || "Não foi possível cadastrar veículo.");
+          throw new Error(
+            await readApiErrorMessage(
+              response,
+              "Não foi possível cadastrar veículo.",
+            ),
+          );
         }
 
         setMessage("Veículo cadastrado com sucesso.");

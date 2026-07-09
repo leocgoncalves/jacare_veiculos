@@ -229,9 +229,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-6 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs text-white/65">
-          <p className="font-semibold text-white/80">Acesso inicial de teste:</p>
-          <p>Cliente: cliente@jacareveiculos.com / Cliente@123</p>
-          <p className="mt-3">
+          <p>
             Administrador?{" "}
             <Link href="/admin/login" className="text-[#c8a24c] hover:brightness-110">
               Acessar área administrativa
